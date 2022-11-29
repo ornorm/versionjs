@@ -2,9 +2,32 @@
   "name": "versionjs",
   "version": "1.0.0",
   "description": "A basic Semantic Versioning 2.0.0 parser",
-  "main": "index.js",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/esm/types/index.d.ts",
+        "default": "./dist/esm/index.mjs"
+      },
+      "require": {
+        "types": "./dist/cjs/types/index.d.ts",
+        "default": "./dist/cjs/index.js"
+      }
+    }
+  },
+  "types": "./dist/cjs/types/index.d.ts",
+  "main": "./dist/cjs/index.js",
+  "files": [
+    "./dist/**/*"
+  ],
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "clean": "rm -rf dist",
+    "build": "npm run clean && npm run build:esm && npm run build:cjs",
+    "build:esm": "tsc -p ./conf/tsconfig.esm.json && mv dist/esm/index.js dist/esm/index.mjs",
+    "build:cjs": "tsc -p ./conf/tsconfig.cjs.json",
+    "test": "jest --forceExit --coverageDirectory=coverage --coverage --verbose --detectOpenHandles",
+    "test:watch": "npm run test -- --config jest.config.js --watchAll",
+    "docs": "typedoc --out docs/ --json docs/typedoc.json --options typedoc.json --tsconfig tsconfig.json",
+    "prepack": "npm run build"
   },
   "repository": {
     "type": "git",
@@ -16,5 +39,16 @@
   "bugs": {
     "url": "https://github.com/ornorm/versionjs/issues"
   },
-  "homepage": "https://github.com/ornorm/versionjs#readme"
+  "homepage": "https://github.com/ornorm/versionjs#readme",
+  "devDependencies": {
+    "@types/eslint": "^8.4.10",
+    "@types/jest": "^29.2.3",
+    "@typescript-eslint/eslint-plugin": "^5.45.0",
+    "@typescript-eslint/parser": "^5.45.0",
+    "eslint": "^8.28.0",
+    "jest": "^29.3.1",
+    "ts-jest": "^29.0.3",
+    "typedoc": "^0.23.21",
+    "typescript": "^4.9.3"
+  }
 }
