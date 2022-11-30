@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2022 @ornorm
+ * Copyright (c) 2022 Aime Biendo
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -22,10 +22,10 @@
  * SOFTWARE.
  */
 
-import {Version, VersionOptions} from '../src/version';
+import {IntId, StringId, Version, VersionOptions} from '../src/version';
 
 describe('Describe the Version API.', () => {
-  describe('Describe constructor.', () => {
+  describe('Describe Version constructor.', () => {
     const expectNegativeVersion: (options: VersionOptions, msg: string) => void =
       (options: VersionOptions, msg: string): void => {
         try {
@@ -215,5 +215,165 @@ describe('Describe the Version API.', () => {
       INVALID_VERSIONS.forEach((version: string) =>
         expectInvalidVersion({version})
       ));
+  });
+  describe('Describe Version methods.', () => {
+    it('Should check snapshot.', () => {
+        const snapshot: Version = new Version({
+          major: 10, minor: 2, patch: 3, preRelease: 'DEV-SNAPSHOT'
+        });
+        expect(snapshot.isSnapshot).toBeTruthy();
+        const nonSnapshot: Version = new Version({
+          major: 1,
+          minor: 0,
+          patch: 0,
+          buildMetadata: '0.build.1-rc.10000aaa-kk-0.199999999999999999999999.999999999999999999.99999999999999999'
+        });
+      expect(nonSnapshot.isSnapshot).toBeFalsy();
+    });
+    it('Should check isInDevelopment.', () => {
+      const dev: Version = new Version({
+        major: 0, minor: 2, patch: 3, preRelease: 'DEV-SNAPSHOT'
+      });
+      expect(dev.isInDevelopment).toBeTruthy();
+      expect(dev.isStable).toBeFalsy();
+      const nonDev: Version = new Version({
+        major: 10, minor: 2, patch: 3, preRelease: 'DEV-SNAPSHOT'
+      });
+      expect(nonDev.isInDevelopment).toBeFalsy();
+      expect(nonDev.isStable).toBeTruthy();
+      const compatible: Version = new Version({
+        major: 0, minor: 3, patch: 53
+      });
+      expect(compatible.isCompatible(dev)).toBeTruthy();
+    });
+    it('Should clone a Version.', () => {
+      const version1: Version = new Version({
+        major: 10, minor: 2, patch: 3, preRelease: 'DEV-SNAPSHOT'
+      });
+      const version2: Version = version1.clone() as Version;
+      expect(version1.equals(version2)).toBeTruthy();
+      expect(version1.compareTo(version2)).toBe(0);
+    });
+    it('Should compare to other Version.', () => {
+      const v1: Version = new Version({
+        major: 1, minor: 2, patch: 3, preRelease: '0-alpha'
+      });
+      expect(v1.compareTo(v1)).toBe(0);
+      const v2: Version = new Version({
+        major: 2, minor: 2, patch: 3, preRelease: '0-alpha'
+      });
+      expect(v1.compareTo(v2)).toBe(-1);
+      const v3: Version = new Version({
+        major: 1, minor: 3, patch: 3, preRelease: '0-alpha'
+      });
+      expect(v1.compareTo(v3)).toBe(-1);
+      const v4: Version = new Version({
+        major: 1, minor: 2, patch: 4, preRelease: '0-alpha'
+      });
+      expect(v1.compareTo(v4)).toBe(-1);
+      const v5: Version = new Version({
+        major: 1, minor: 2, patch: 3, preRelease: '1-alpha'
+      });
+      expect(v1.compareTo(v5)).toBe(-1);
+      const v6: Version = new Version({
+        major: 1, minor: 2, patch: 3
+      });
+      expect(v1.compareTo(v6)).toBe(-1);
+      const v7: Version = new Version({
+        major: 1, minor: 2, patch: 3
+      });
+      const v8: Version = new Version({
+        major: 1, minor: 2, patch: 3, preRelease: '1-alpha'
+      });
+      expect(v7.compareTo(v8)).toBe(1);
+      const v9: Version = new Version({
+        major: 1, minor: 2, patch: 3, buildMetadata: 'exp.sha.5114f85'
+      });
+      expect(v7.compareTo(v9)).toBe(0);
+    });
+  });
+  describe('Describe StringId.', () => {
+    it('Should construct a string id.', () => {
+      const stringId: StringId = new StringId('0A.is.legal');
+      expect(stringId).toBeDefined();
+    });
+    it('Should check snapshot.', () => {
+      const stringId1: StringId = new StringId('0A.SNAPSHOT');
+      expect(stringId1.isSnapshot).toBeTruthy();
+      const stringId2: StringId = new StringId('12+meta');
+      expect(stringId2.isSnapshot).toBeFalsy();
+    });
+    it('Should compare to other StringId.', () => {
+      const stringId1: StringId = new StringId('0-alpha');
+      const stringId2: StringId = new StringId('1-alpha');
+      expect(stringId1.compareTo(stringId2)).toBe(-1);
+      expect(stringId2.compareTo(stringId1)).toBe(1);
+      expect(stringId1.compareTo(stringId1)).toBe(0);
+      expect(stringId2.compareTo(stringId2)).toBe(0);
+      expect(stringId1.compareTo(new IntId(34))).toBe(1);
+    });
+    it('Should check equality to other StringId.', () => {
+      const stringId1: StringId = new StringId('0-alpha');
+      const stringId2: StringId = new StringId('1-alpha');
+      expect(stringId1.equals([])).toBeFalsy();
+      expect(stringId1.equals(stringId2)).toBeFalsy();
+      expect(stringId2.equals(stringId1)).toBeFalsy();
+      expect(stringId1.equals(stringId1)).toBeTruthy();
+      expect(stringId2.equals(stringId2)).toBeTruthy();
+    });
+    it('Should clone a StringId.', () => {
+      const stringId1: StringId = new StringId('0-alpha');
+      const stringId2: StringId = stringId1.clone() as StringId;
+      expect(stringId1.equals(stringId2)).toBeTruthy();
+      expect(stringId1.compareTo(stringId2)).toBe(0);
+    });
+    it('Should release a StringId.', () => {
+      const stringId1: StringId = new StringId('0-alpha');
+      expect(stringId1.toString()).toBe('0-alpha');
+      stringId1.finalize();
+      expect(stringId1.toString()).toBe('');
+    });
+  });
+  describe('Describe IntId.', () => {
+    it('Should construct a int id.', () => {
+      const intId: IntId = new IntId(1);
+      expect(intId).toBeDefined();
+    });
+    it('Should check snapshot.', () => {
+      const intId1: IntId = new IntId(1);
+      expect(intId1.isSnapshot).toBeFalsy();
+      const intId2: IntId = new IntId(100);
+      expect(intId2.isSnapshot).toBeFalsy();
+    });
+    it('Should compare to other IntId.', () => {
+      const intId1: IntId = new IntId(0);
+      const intId2: IntId = new IntId(1);
+      expect(intId1.compareTo(intId2)).toBe(-1);
+      expect(intId2.compareTo(intId1)).toBe(1);
+      expect(intId1.compareTo(intId1)).toBe(0);
+      expect(intId2.compareTo(intId2)).toBe(0);
+      expect(intId1.compareTo(new StringId('0-alpha'))).toBe(-1);
+    });
+    it('Should check equality to other IntId.', () => {
+      const intId1: IntId = new IntId(0);
+      const intId2: IntId = new IntId(1);
+      expect(intId1.equals([])).toBeFalsy();
+      expect(intId1.equals(intId2)).toBeFalsy();
+      expect(intId2.equals(intId1)).toBeFalsy();
+      expect(intId1.equals(intId1)).toBeTruthy();
+      expect(intId2.equals(intId2)).toBeTruthy();
+    });
+    it('Should clone a IntId.', () => {
+      const intId1: IntId = new IntId(0);
+      const intId2: IntId = intId1.clone() as IntId;
+      expect(intId1.equals(intId2)).toBeTruthy();
+      expect(intId1.compareTo(intId2)).toBe(0);
+    });
+    it('Should release an IntId.', () => {
+      const intId1: IntId = new IntId(0);
+      expect(intId1.toString()).toBe('0');
+      intId1.finalize();
+      expect(intId1.toString()).toBe('-1');
+    });
   });
 });

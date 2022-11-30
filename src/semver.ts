@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2022 @ornorm
+ * Copyright (c) 2022 Aime Biendo
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -31,35 +31,57 @@ export interface SpecialId {
      */
     isSnapshot: boolean;
     /**
+     * Clone this {@link SpecialId}.
+     *
+     * @return A clone
+     */
+    clone(): SpecialId;
+    /**
      * Compare to the specified {@link SpecialId}.
      *
      * @param other To be compared to.
      * @return The result.
      */
     compareTo(other: SpecialId): number;
+    /**
+     * Check if the specified value is the same {@link SpecialId}.
+     *
+     * @return True when the same
+     */
+    equals(obj: any): boolean;
+    /**
+     * Release this {@link SpecialId}.
+     */
+    finalize(): void;
+    /**
+     * Return a string representation of this {@link SpecialId}.
+     *
+     * @return A string that represent this instance
+     */
+    toString(): string;
 }
 
 /**
  * {@link Semver} component. From most meaningful to less meaningful.
  */
-export enum VersionType {
+export const VersionType: Record<string, number> = {
     /**
      * MAJOR version when you make incompatible API changes.
      */
-    MAJOR,
+    MAJOR: 0,
     /**
      * MINOR version when you add functionality in a backwards compatible manner.
      */
-    MINOR,
+    MINOR: 1,
     /**
      * PATCH version when you make backwards compatible bug fixes.
      */
-    PATCH,
+    PATCH: 2,
     /**
      * Additional labels for pre-release and build metadata are available
      * as extensions to the MAJOR.MINOR.PATCH format.
      */
-    SPECIAL
+    SPECIAL: 3
 }
 
 /**
@@ -71,9 +93,6 @@ export enum VersionType {
  * </ol>
  * Additional labels for pre-release and build metadata are available as extensions to the
  * MAJOR.MINOR.PATCH format.
- *
- * @see ObjectClass
- * @see Comparable
  */
 export interface Semver {
     /**
@@ -155,6 +174,25 @@ export interface Semver {
     version: string;
 
     /**
+     * Compare to another {@link Semver}.
+     *
+     * @return A number
+     */
+    compareTo(another: Semver): number;
+
+    /**
+     * Check if the specified value is the same {@link Semver}.
+     *
+     * @return True when the same
+     */
+    equals(obj: any): boolean;
+
+    /**
+     * Destroy this {@link Semver}.
+     */
+    finalize(): void;
+
+    /**
      * Check {@link Semver} compatibility.
      *
      * @param version To check.
@@ -168,7 +206,22 @@ export interface Semver {
      * @param type The version type.
      * @return The next version
      */
-    next(type?: VersionType): Semver;
+    next(type?: number): Semver;
+
+    /**
+     * Return this {@link Semver} string representation.
+     *
+     * @return A string that represent this instance
+     */
+    toString(): string;
+
+    /**
+     * Test the version validity.
+     *
+     * @param version To check.
+     * @return True if valid
+     */
+    validate(version: string): boolean;
 }
 
 export default Semver;

@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2022 @ornorm
+ * Copyright (c) 2022 Aime Biendo
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -48,6 +48,11 @@ const SNAPSHOT_VERSION_SUFFIX: string = 'SNAPSHOT';
  * Digit reg.
  */
 const DIGITS_ONLY: RegExp = /\d+/;
+
+/**
+ * Dot reg.
+ */
+const DOT_SPLIT: RegExp = /\./;
 
 // eslint-disable-next-line max-len
 const FORMAT: RegExp = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[a-zA-Z-][\da-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][\da-zA-Z-]*))*))?(?:\+([\da-zA-Z-]+(?:\.[\da-zA-Z-]+)*))?$/gm;
@@ -131,9 +136,8 @@ export class StringId implements SpecialId {
         if (!(obj instanceof StringId)) {
             return false;
         }
-        const stringId: StringId = obj as StringId;
 
-        return stringId.id === this.id;
+        return this.compareTo(obj as StringId) === 0;
     }
 
     /**
@@ -149,7 +153,10 @@ export class StringId implements SpecialId {
     public compareTo(other: SpecialId): number {
         if (other instanceof StringId) {
             const strId: StringId = other as StringId;
-            return strId.id === this.id ? 0 : strId.id < this.id ? -1 : 1;
+            if (strId.id === this.id) {
+                return 0;
+            }
+            return this.id.localeCompare(strId.id);
         } else if (other instanceof IntId) {
             // Numeric identifiers always have lower precedence than non-numeric identifiers.
             return 1;
@@ -251,9 +258,11 @@ export class IntId implements SpecialId {
 }
 
 /**
- * A special metadata
+ * A special metadata.
+ *
+ * @see SpecialId
  */
-export class Special {
+export class Special implements SpecialId {
     private readonly ids: Array<SpecialId> = [];
     private version: string = '';
 
@@ -263,7 +272,7 @@ export class Special {
      * @param version Value.
      */
     constructor(version: string) {
-        const parts: Array<string> = version.split(/\./);
+        const parts: Array<string> = version.split(DOT_SPLIT);
         this.version = version;
         parts.forEach((part: string) =>
             this.ids.push(Special.parseSpecialId(part))
@@ -431,7 +440,7 @@ export class Version implements Semver {
                 this.buildMetadata = buildMetadata;
             }
             if (!this.validate(this.version)) {
-                throw new SyntaxError(`IllegalArgumentException invalid <${this.version}> version.`);
+                throw new SyntaxError(`${ILLEGAL_ARGUMENT_EXCEPTION} invalid <${this.version}> version.`);
             }
         }
     }
@@ -443,7 +452,7 @@ export class Version implements Semver {
      * Identifiers MUST comprise only ASCII alphanumerics and hyphens [0-9A-Za-z-].
      * <p>
      * Identifiers MUST NOT be empty. Build metadata MUST be ignored when determining
-     * version precedence. Thus two versions that differ only in the build metadata,
+     * version precedence. Thus, two versions that differ only in the build metadata,
      * have the same precedence.
      *
      * @example 1.0.0-alpha+001, 1.0.0+20130313144700, 1.0.0-beta+exp.sha.5114f85,
@@ -605,7 +614,7 @@ export class Version implements Semver {
                 this.versionString = DEFAULT_VERSION;
             }
         } else {
-            throw new SyntaxError(`IllegalArgumentException invalid <${version}> version.`);
+            throw new SyntaxError(`${ILLEGAL_ARGUMENT_EXCEPTION} invalid <${version}> version.`);
         }
     }
 
@@ -625,9 +634,7 @@ export class Version implements Semver {
     }
 
     /**
-     * Compare to another {@link Semver}.
-     *
-     * @return A number
+     * @inheritDoc
      */
     public compareTo(another: Semver): number {
         if (this.equals(another)) {
@@ -667,9 +674,7 @@ export class Version implements Semver {
     }
 
     /**
-     * Check if the specified value is the same {@link Version}.
-     *
-     * @return True when the same
+     * @inheritDoc
      */
     public equals(obj: any): boolean {
         if (obj === this) {
@@ -688,7 +693,7 @@ export class Version implements Semver {
     }
 
     /**
-     * Destroy this {@link Version}.
+     * @inheritDoc
      */
     public finalize(): void {
         this.versionString = DEFAULT_VERSION;
@@ -707,46 +712,41 @@ export class Version implements Semver {
     /**
      * @inheritDoc
      */
-    public next(type?: VersionType): Semver {
+    public next(type?: number): Semver {
         if (!type) {
-            throw new ReferenceError('IllegalArgumentException null type');
+            throw new ReferenceError(`${ILLEGAL_ARGUMENT_EXCEPTION} null type`);
         }
         const hasSpecial: boolean = this.preRelease !== undefined || this.buildMetadata !== undefined;
         switch (type) {
-            case VersionType.MAJOR.valueOf():
+            case VersionType.MAJOR:
                 if (!hasSpecial || this.minor !== 0 || this.patch !== 0) {
                     return new Version({major: this.major + 1, minor: 0, patch: 0});
                 }
                 return new Version({major: this.major, minor: 0, patch: 0});
-            case VersionType.MINOR.valueOf():
+            case VersionType.MINOR:
                 if (!hasSpecial || this.patch !== 0) {
                     return new Version({major: this.major, minor: this.minor + 1, patch: 0});
                 }
                 return new Version({major: this.major, minor: this.minor, patch: 0});
-            case VersionType.PATCH.valueOf():
+            case VersionType.PATCH:
                 if (!hasSpecial) {
                     return new Version({major: this.major, minor: this.minor, patch: this.patch + 1});
                 }
                 return new Version({major: this.major, minor: this.minor, patch: this.patch});
             default:
-                throw new SyntaxError(`IllegalArgumentException Unknown type <${type}>`);
+                throw new SyntaxError(`${ILLEGAL_ARGUMENT_EXCEPTION} Unknown type <${type}>`);
         }
     }
 
     /**
-     * Return this {@link Version} string representation.
-     *
-     * @return A string that represent this instance
+     * @inheritDoc
      */
     public toString(): string {
         return this.version;
     }
 
     /**
-     * Test the version validity.
-     *
-     * @param version To check.
-     * @return True if valid
+     * @inheritDoc
      */
     public validate(version: string): boolean {
         return version.match(FORMAT) !== null;
