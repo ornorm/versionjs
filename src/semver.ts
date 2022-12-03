@@ -62,27 +62,30 @@ export interface SpecialId {
 }
 
 /**
+ * MAJOR version when you make incompatible API changes.
+ */
+export const VERSION_TYPE_MAJOR: number = 0;
+
+/**
+ * MINOR version when you add functionality in a backwards compatible manner.
+ */
+export const VERSION_TYPE_MINOR: number = 1;
+
+/**
+ * PATCH version when you make backwards compatible bug fixes.
+ */
+export const VERSION_TYPE_PATCH: number = 2;
+
+/**
+ * Additional labels for pre-release and build metadata are available
+ * as extensions to the MAJOR.MINOR.PATCH format.
+ */
+export const VERSION_TYPE_SPECIAL: number = 3;
+
+/**
  * {@link Semver} component. From most meaningful to less meaningful.
  */
-export const VersionType: Record<string, number> = {
-    /**
-     * MAJOR version when you make incompatible API changes.
-     */
-    MAJOR: 0,
-    /**
-     * MINOR version when you add functionality in a backwards compatible manner.
-     */
-    MINOR: 1,
-    /**
-     * PATCH version when you make backwards compatible bug fixes.
-     */
-    PATCH: 2,
-    /**
-     * Additional labels for pre-release and build metadata are available
-     * as extensions to the MAJOR.MINOR.PATCH format.
-     */
-    SPECIAL: 3
-}
+export type VersionType = 0 | 1 | 2 | 3;
 
 /**
  * Given a version number MAJOR.MINOR.PATCH, increment the:
@@ -96,6 +99,16 @@ export const VersionType: Record<string, number> = {
  */
 export interface Semver {
     /**
+     * Return changes that break backward compatibility {@link Semver}, stage major
+     * release that increment the major value and reset the minor and patch value.
+     */
+    breakChanges: Semver;
+    /**
+     * Return a backward compatible bug fixes {@link Semver}, stage patch release that Increment
+     * the patch value.
+     */
+    bugFixes: Semver
+    /**
      * Build metadata MAY be denoted by appending a plus sign and a series
      * of dot separated identifiers immediately following the patch or pre-release version.
      * <p>
@@ -108,6 +121,18 @@ export interface Semver {
      * @example 1.0.0-alpha+001, 1.0.0+20130313144700, 1.0.0-beta+exp.sha.5114f85, 1.0.0+21AF26D3—-117B344092BD.
      */
     buildMetadata?: string;
+    /**
+     * True when patch version is greater than 0.
+     */
+    isBugFix: boolean;
+    /**
+     * True when development version.
+     */
+    isInDevelopment: boolean;
+    /**
+     * True when version 1.0.0 that defines the public API.
+     */
+    isPublicApi: boolean;
     /**
      * True when SNAPSHOT version.
      */
@@ -140,6 +165,11 @@ export interface Semver {
      *   Patch version MUST be reset to 0 when minor version is incremented.
      */
     minor: number;
+    /**
+     * Return a backward compatible new features {@link Semver}, stage minor release that Increment
+     * the minor value and reset the patch value.
+     */
+    newFeatures: Semver;
     /**
      * Patch version Z (x.y.Z | x > 0) MUST be incremented if only backwards compatible
      * bug fixes are introduced.
@@ -174,11 +204,26 @@ export interface Semver {
     version: string;
 
     /**
+     * Clone this {@link Version}.
+     *
+     * @return A {@link Semver} implementation
+     */
+    clone(): Semver;
+
+    /**
      * Compare to another {@link Semver}.
      *
      * @return A number
      */
     compareTo(another: Semver): number;
+
+    /**
+     * Check if this {@link Semver} equals the specified one.
+     *
+     * @param another To compare to.
+     * @return True when equals
+     */
+    eq(another: Semver): boolean;
 
     /**
      * Check if the specified value is the same {@link Semver}.
@@ -193,6 +238,14 @@ export interface Semver {
     finalize(): void;
 
     /**
+     * Check if this {@link Semver} is greater than the specified one.
+     *
+     * @param another To compare to.
+     * @return True when greater
+     */
+    gt(another: Semver): boolean;
+
+    /**
      * Check {@link Semver} compatibility.
      *
      * @param version To check.
@@ -201,12 +254,20 @@ export interface Semver {
     isCompatible(version: Semver): boolean;
 
     /**
+     * Check if this {@link Semver} is less than the specified one.
+     *
+     * @param another To compare to.
+     * @return True when less than
+     */
+    lt(another: Semver): boolean;
+
+    /**
      * Get the next {@link Semver} regarding specified {@link VersionType}.
      *
      * @param type The version type.
      * @return The next version
      */
-    next(type?: number): Semver;
+    next(type: VersionType | number): Semver;
 
     /**
      * Return this {@link Semver} string representation.

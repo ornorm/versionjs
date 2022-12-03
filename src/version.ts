@@ -22,7 +22,7 @@
  * SOFTWARE.
  */
 
-import Semver, {SpecialId, VersionType} from './semver';
+import Semver, {SpecialId, VERSION_TYPE_MAJOR, VERSION_TYPE_MINOR, VERSION_TYPE_PATCH, VersionType} from './semver';
 
 /**
  * Separator for pre release.
@@ -56,6 +56,13 @@ const DOT_SPLIT: RegExp = /\./;
 
 // eslint-disable-next-line max-len
 const FORMAT: RegExp = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[a-zA-Z-][\da-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][\da-zA-Z-]*))*))?(?:\+([\da-zA-Z-]+(?:\.[\da-zA-Z-]+)*))?$/gm;
+
+const PREFIXED_FORMAT: RegExp = /^[v\d]/;
+
+const RANGE_OP_REG: RegExp = /^([<>=~^]+)/;
+
+// eslint-disable-next-line max-len
+const SEMVER: RegExp = /^[v^~<>=]*?(\d+)(?:\.([x*]|\d+)(?:\.([x*]|\d+)(?:\.([x*]|\d+))?(?:-([\da-z\-]+(?:\.[\da-z\-]+)*))?(?:\+[\da-z\-]+(?:\.[\da-z\-]+)*)?)?)?$/i;
 
 /**
  * Illegal argument.
@@ -218,7 +225,7 @@ export class IntId implements SpecialId {
     public compareTo(other: SpecialId): number {
         if (other instanceof IntId) {
             const intId: IntId = other as IntId;
-            return this.id - intId.id;
+            return this.id < intId.id ? -1 : this.id === intId.id ? 0 : 1;
         } else if (other instanceof StringId) {
             //Numeric identifiers always have lower precedence than non-numeric identifiers.
             return -1;
@@ -446,6 +453,29 @@ export class Version implements Semver {
     }
 
     /**
+     * A first release {@link Semver}, stage new product version that start with 1.0.0.
+     */
+    public static get firstRelease(): Semver {
+        return new Version({major: 1, minor: 0, patch: 0});
+    }
+
+    /**
+     * Return changes that break backward compatibility {@link Semver}, stage major
+     * release that increment the major value and reset the minor and patch value.
+     */
+    public get breakChanges(): Semver {
+        return this.next(VERSION_TYPE_MAJOR);
+    }
+
+    /**
+     * Return a backward compatible bug fixes {@link Semver}, stage patch release that Increment
+     * the patch value.
+     */
+    public get bugFixes(): Semver {
+        return this.next(VERSION_TYPE_PATCH);
+    }
+
+    /**
      * Build metadata MAY be denoted by appending a plus sign and a series
      * of dot separated identifiers immediately following the patch or pre-release version.
      * <p>
@@ -469,10 +499,24 @@ export class Version implements Semver {
     }
 
     /**
+     * True when patch version is greater than 0.
+     */
+    public get isBugFix(): boolean {
+        return this.patch > 0;
+    }
+
+    /**
      * True when development version.
      */
     public get isInDevelopment(): boolean {
         return this.major === 0;
+    }
+
+    /**
+     * True when version 1.0.0 that defines the public API.
+     */
+    public get isPublicApi(): boolean {
+        return this.major === 1 && this.minor === 0 && this.patch === 0;
     }
 
     /**
@@ -532,6 +576,14 @@ export class Version implements Semver {
     }
 
     /**
+     * Return a backward compatible new features {@link Semver}, stage minor release that Increment
+     * the minor value and reset the patch value.
+     */
+    public get newFeatures(): Semver {
+        return this.next(VERSION_TYPE_MINOR);
+    }
+
+    /**
      * Patch version Z (x.y.Z | x > 0) MUST be incremented if only backwards compatible
      * bug fixes are introduced.
      * <p>
@@ -587,27 +639,38 @@ export class Version implements Semver {
     }
 
     public set version(version: string) {
-        const match: RegExpExecArray | null = FORMAT.exec(version);
+        const v: string = version.startsWith('v') ? version.substring(1, version.length) : version;
+        const match: RegExpExecArray | null = SEMVER.exec(v);
         if (match) {
             try {
                 const major: string | undefined = match[1];
                 const minor: string | undefined = match[2];
                 const patch: string | undefined = match[3];
-                const preRelease: string | undefined = match[4];
-                const buildMetadata: string | undefined = match[5];
-                if (major) {
+                const build: string | undefined = match[4];
+                const preRelease: string | undefined = match[5];
+                let buildMetadata: string | undefined;
+                if (version.indexOf('+') !== -1) {
+                    const matchBuildMetadata: RegExpExecArray | null = FORMAT.exec(v);
+                    if (matchBuildMetadata) {
+                        buildMetadata = matchBuildMetadata[5];
+                    }
+                }
+                if (typeof major === 'string') {
                     this.major = parseInt(major, 10);
                 }
-                if (minor) {
+                if (typeof minor === 'string') {
                     this.minor = parseInt(minor, 10);
                 }
-                if (patch) {
+                if (typeof patch === 'string') {
                     this.patch = parseInt(patch, 10);
                 }
-                if (preRelease) {
+                if (typeof build === 'string') {
+                    // this.build = parseInt(build, 10);
+                }
+                if (typeof preRelease === 'string') {
                     this.preRelease = preRelease;
                 }
-                if (buildMetadata) {
+                if (typeof buildMetadata === 'string') {
                     this.buildMetadata = buildMetadata;
                 }
             } catch (e) {
@@ -619,9 +682,7 @@ export class Version implements Semver {
     }
 
     /**
-     * Clone this {@link Version}.
-     *
-     * @return A {@link Semver} implementation
+     * @inheritDoc
      */
     public clone(): Semver {
         return new Version({
@@ -676,6 +737,13 @@ export class Version implements Semver {
     /**
      * @inheritDoc
      */
+    public eq(another: Semver): boolean {
+        return this.compareTo(another) === 0;
+    }
+
+    /**
+     * @inheritDoc
+     */
     public equals(obj: any): boolean {
         if (obj === this) {
             return true;
@@ -705,6 +773,13 @@ export class Version implements Semver {
     /**
      * @inheritDoc
      */
+    public gt(another: Semver): boolean {
+        return this.compareTo(another) === 1;
+    }
+
+    /**
+     * @inheritDoc
+     */
     public isCompatible(version: Semver): boolean {
         return this.major === version.major;
     }
@@ -712,23 +787,27 @@ export class Version implements Semver {
     /**
      * @inheritDoc
      */
-    public next(type?: number): Semver {
-        if (!type) {
-            throw new ReferenceError(`${ILLEGAL_ARGUMENT_EXCEPTION} null type`);
-        }
+    public lt(another: Semver): boolean {
+        return this.compareTo(another) === -1;
+    }
+
+    /**
+     * @inheritDoc
+     */
+    public next(type: VersionType | number): Semver {
         const hasSpecial: boolean = this.preRelease !== undefined || this.buildMetadata !== undefined;
         switch (type) {
-            case VersionType.MAJOR:
+            case VERSION_TYPE_MAJOR:
                 if (!hasSpecial || this.minor !== 0 || this.patch !== 0) {
                     return new Version({major: this.major + 1, minor: 0, patch: 0});
                 }
                 return new Version({major: this.major, minor: 0, patch: 0});
-            case VersionType.MINOR:
+            case VERSION_TYPE_MINOR:
                 if (!hasSpecial || this.patch !== 0) {
                     return new Version({major: this.major, minor: this.minor + 1, patch: 0});
                 }
                 return new Version({major: this.major, minor: this.minor, patch: 0});
-            case VersionType.PATCH:
+            case VERSION_TYPE_PATCH:
                 if (!hasSpecial) {
                     return new Version({major: this.major, minor: this.minor, patch: this.patch + 1});
                 }
